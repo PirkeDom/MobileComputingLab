@@ -1,0 +1,6 @@
+<resources>
+    <string name="app_name">Task1_ActivityMonitoring</string>
+    <string name="error_no_sensor">No sensor</string>
+    <string name="label_accelerometer">Accelerometer (X/Y/Z): (%1$.2f/%2$.2f/%2$.2f)</string>
+    <string name="label_seconds">SensorChangedNr.: %d</string>
+</resources>
