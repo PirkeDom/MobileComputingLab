@@ -216,7 +216,7 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
 
         if(counter % 20 == 0 )
         {
-            //calculate mean of all 20 values and put it into knn
+            //TODO: calculate mean of all 20 values and put it into knn
             System.out.println();
 
         }
