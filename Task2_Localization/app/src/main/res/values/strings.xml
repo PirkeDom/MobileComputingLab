@@ -1,0 +1,8 @@
+<resources>
+    <string name="app_name">Task2_Localization</string>
+    <string name="label_predicted_location">Predicted Cell:  %s</string>
+    <string name="button_createFile1">Create new data</string>
+    <string name="button_createFile2">Write data to file</string>
+
+
+</resources>

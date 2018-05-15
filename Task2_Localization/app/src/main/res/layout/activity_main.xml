@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="utf-8"?>
+<android.support.constraint.ConstraintLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    xmlns:tools="http://schemas.android.com/tools"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    tools:context=".MainActivity">
+
+    <Button
+        android:id="@+id/button_start"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Start recording"
+        app:layout_constraintLeft_toLeftOf="parent"/>
+    <EditText
+        android:id="@+id/text_cellnr"
+        android:layout_width="20pt"
+        android:layout_height="wrap_content"
+        android:ems="10"
+        android:inputType="textPersonName"
+        android:text="1"
+        app:layout_constraintLeft_toRightOf="@+id/button_start"/>
+    <TextView
+        android:id="@+id/label_recording"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text=""
+        app:layout_constraintLeft_toRightOf="@+id/text_cellnr"></TextView>
+    <Button
+        android:id="@+id/button_stop"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Stop"
+        app:layout_constraintLeft_toLeftOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/button_start"/>
+    <Button
+        android:id="@+id/button_createFile"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/button_createFile1"
+        app:layout_constraintTop_toBottomOf="@+id/button_start"
+        app:layout_constraintLeft_toRightOf="@+id/button_stop"/>
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:background="@android:color/darker_gray"/><View
+        android:layout_width="match_parent"
+        android:layout_height="3dp"
+        android:background="@android:color/darker_gray"
+        app:layout_constraintLeft_toLeftOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/button_stop"/>
+    <Button
+        android:id="@+id/button_locateme"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Locate me"
+        app:layout_constraintLeft_toLeftOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/button_stop"/>
+    <TextView
+        android:id="@+id/label_predicted_activity"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/label_predicted_location"
+        app:layout_constraintLeft_toLeftOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/button_locateme"></TextView>
+    <ImageView
+        android:id="@+id/image_map"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_gravity="center"
+        android:src="@drawable/map"
+        app:layout_constraintLeft_toLeftOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/label_predicted_activity"/>
+
+</android.support.constraint.ConstraintLayout>

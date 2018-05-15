@@ -214,10 +214,31 @@ public class MainActivity extends AppCompatActivity implements SensorEventListen
         mTextSeconds.setText(getResources().getString(R.string.label_seconds, counter++));
         printSensorData();
 
-        if(counter % 20 == 0 )
+        if(counter % 10 == 0 )
         {
             //TODO: calculate mean of all 20 values and put it into knn
-            System.out.println();
+            float sumX = 0, sumY = 0, sumZ = 0;
+            for(int i = 0; i < 20; i++) {
+                sumX+=buffer[i][0];
+                sumY+=buffer[i][1];
+                sumZ+=buffer[i][2];
+            }
+
+            TestRecord recordToClassify = new TestRecord(new double[]{sumX/20, sumY/20, sumZ/20, 0.000000}, 0);
+
+            TrainRecord[] neighbors = findKNearestNeighbors(trainingSet, recordToClassify, 3, new EuclideanDistance());
+            int classLabel = classify(neighbors);
+            String predictedActivity = "";
+            switch(classLabel)
+            {
+                case 0: predictedActivity = "Running";
+                    break;
+                case 1: predictedActivity = "Walking";
+                    break;
+                case 2: predictedActivity = "Sitting";
+                    break;
+            }
+            mTextPredictedActivity.setText(getResources().getString(R.string.label_predicted_activity, predictedActivity));
 
         }
 

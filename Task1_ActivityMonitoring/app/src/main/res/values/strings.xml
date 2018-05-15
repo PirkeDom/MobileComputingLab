@@ -3,5 +3,5 @@
     <string name="error_no_sensor">No sensor</string>
     <string name="label_accelerometer">Accelerometer (X/Y/Z): (%1$.2f/%2$.2f/%2$.2f)</string>
     <string name="label_seconds">SensorChangedNr.: %d</string>
-    <string name="label_predicted_activity">Predicted Activity.: %s</string>
+    <string name="label_predicted_activity">Predicted Activity: %s</string>
 </resources>
