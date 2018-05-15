@@ -81,35 +81,37 @@ public class MainActivity extends Activity {
 
                     exportData = false;
 
-                    HashMap<String, HashMap<Integer, List<Double>>> accessPointsNormalizedHistogram = new HashMap<>();
+                    HashMap<String, HashMap<Integer, double[]>> accessPointsNormalizedHistogram = new HashMap<>();
 
 
                     for (HashMap.Entry<String, HashMap<Integer, List<Double>>> entryAP : accessPoints.entrySet()) {
                         String keyAP = entryAP.getKey();
                         HashMap<Integer, List<Double>> valueAP = entryAP.getValue();
 
-                        HashMap<Integer, List<Double>> cellnormalizedHistogram = new HashMap<>();
+                        HashMap<Integer, double[]> cellnormalizedHistogram = new HashMap<>();
 
                         for (HashMap.Entry<Integer, List<Double>> entryCell : valueAP.entrySet()) {
                             Integer keyCell = entryCell.getKey();
                             List<Double> valueCell = entryCell.getValue();
 
-                            Double[] normalizedData = MathUtils.normalizeToSumUpTo(valueCell.toArray(new Double[valueCell.size()]), 256.0);
+                            Double[] tmp = valueCell.toArray(new Double[valueCell.size()]);
+                            double[] rssValues = new double[128];
+                            for (int i = 0; i < tmp.length; i++) {
+                                int rss = (int)(128.0 + tmp[i]);
+                                rssValues[rss]++;
+                            }
+                            for (int i = 0; i < rssValues.length; i++) {
+                                rssValues[i] = rssValues[i] / tmp.length;
+                            }
 
-                            Histogram hist = new Histogram(MathUtils.toPrimitiveDouble(normalizedData), 256);
-                            double[] histogramData = hist.getHistArray();
 
-
-
-                            //) valueCell = ...;
-                            //TODO: normalize and calculate histrogram ov valueCell list
-                            cellnormalizedHistogram.put(keyCell, valueCell);
+                            cellnormalizedHistogram.put(keyCell,rssValues);
                         }
                         accessPointsNormalizedHistogram.put(keyAP, cellnormalizedHistogram);
                     }
 
                     System.out.println();
-                    //TODO: normalize data; calculate histogram; export data
+
                 }
             }
         });
