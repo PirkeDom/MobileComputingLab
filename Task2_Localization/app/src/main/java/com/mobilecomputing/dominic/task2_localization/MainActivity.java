@@ -17,10 +17,14 @@ import android.view.View;
 import android.widget.Button;
 import android.widget.TextView;
 
+import java.io.BufferedReader;
+import java.io.DataInputStream;
 import java.io.File;
+import java.io.FileInputStream;
 import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
@@ -52,7 +56,7 @@ public class MainActivity extends Activity {
 
     private String filepath = "MyFileStorage";
 
-    private int CELL_NR = 0;
+    private int CELL_NR = 3; //TODO: IMPORTANT: set right cell number
     private int RSS_NR = 256;
 
     @Override
@@ -89,6 +93,14 @@ public class MainActivity extends Activity {
                     // clear lists with data
                     accessPoints = new HashMap<>();
 
+                    // deleote old files
+                    File dir = getExternalFilesDir(filepath);
+                    for (File file : dir.listFiles()) {
+                        file.delete();
+                    }
+
+                    doLocalization = false;
+
                 }
                 else {
                     buttoncreateFile.setText(R.string.button_createFile1);
@@ -105,7 +117,10 @@ public class MainActivity extends Activity {
                         File myExternalFile = new File(getExternalFilesDir(filepath), keyAP + ".txt");
 
                         try {
-                            FileOutputStream fos = new FileOutputStream(myExternalFile, true);
+                            //if(myExternalFile.exists())
+                            //    myExternalFile.delete();
+
+                            FileOutputStream fos = new FileOutputStream(myExternalFile, false);
                             fos.write(("cellNr;rss 0-255\n").getBytes());
 
                             HashMap<Integer, double[]> cellnormalizedHistogram = new HashMap<>();
@@ -133,6 +148,8 @@ public class MainActivity extends Activity {
                             }
                             fos.close();
 
+                            //TODO: add e.g. gaussion distribution to the values with index 0 to 128 (otherwise the values is...
+                            //TODO: ...almost evertime multiplied by 0)
                             accessPointsNormalizedHistogram.put(keyAP, cellnormalizedHistogram);
 
                         } catch (FileNotFoundException e) {
@@ -151,9 +168,10 @@ public class MainActivity extends Activity {
         buttonlocateMe.setOnClickListener(new View.OnClickListener(){
             @Override
             public void onClick(View view) {
-                doLocalization = true;
 
-                while(currentResults == null);
+
+                if(currentResults == null)
+                    return;
 
                 HashMap<String, HashMap<Integer, double[]>> accessPointsPosterior = new HashMap<>();
 
@@ -170,7 +188,11 @@ public class MainActivity extends Activity {
                         double[] valueCell = entryCell.getValue();
                         for(int i = 0; i < valueCell.length; i++)
                         {
-                            double newCellProbability = cellProbabilities.get(keyCell) * valueCell[currentResults.get(keyAP)] / 1.0; //TODO: find probability p(rss_j)
+                            double sumColumn = 0.0;
+                            for (HashMap.Entry<Integer, double[]> tmp : valueAP.entrySet())
+                                sumColumn += tmp.getValue()[currentResults.get(keyAP)];
+
+                            double newCellProbability = cellProbabilities.get(keyCell) * valueCell[currentResults.get(keyAP)] / sumColumn; //TODO: find probability p(rss_j)
                             cellProbabilities.put(keyCell, newCellProbability);
                         }
                     }
@@ -185,8 +207,55 @@ public class MainActivity extends Activity {
         });
         final Button buttoninitialBelieve = (Button)findViewById(R.id.button_initielBelieve);
         buttoninitialBelieve.setOnClickListener(new View.OnClickListener() {
+            @RequiresApi(api = Build.VERSION_CODES.N)
             @Override
             public void onClick(View view) {
+
+                //load data from files (one per AP)
+
+                accessPointsNormalizedHistogram = new HashMap<>();
+                File dir = getExternalFilesDir(filepath);
+                int l = dir.listFiles().length;
+                for (File file : dir.listFiles()) {
+                    HashMap<Integer, double[]> valueAP = new HashMap<Integer, double[]>();
+                    FileInputStream is;
+                    BufferedReader reader;
+
+                        if (file.exists()) {
+                            try {
+                                is = new FileInputStream(file);
+                                reader = new BufferedReader(new InputStreamReader(is));
+                                //header line
+                                String line = reader.readLine();
+                                line = reader.readLine();
+                                while (line != null) {
+                                    String[] dataArrayStrings = line.split(";");
+
+                                    double[] dataArray = new double[dataArrayStrings.length - 1];
+                                    //start with index 1 -> index 0 is cell number!!
+                                    for (int i = 1; i < dataArrayStrings.length; i++)
+                                        dataArray[i-1] = Double.parseDouble(dataArrayStrings[i]);
+                                    valueAP.put(Integer.parseInt(dataArrayStrings[0]), dataArray);
+
+                                    line = reader.readLine();
+                                }
+                            }catch (Exception ex){
+                                System.out.printf(ex.getMessage());
+
+                            }
+                            //read to end of file and then put data into hashmap
+                            try {
+                                accessPointsNormalizedHistogram.put(file.getName().replace(".txt", ""), valueAP);
+                            }
+                            catch (Exception ex){
+                                System.out.printf(ex.getMessage());
+                            }
+                        }
+
+                }
+
+                doLocalization = true;
+
                 cellProbabilities = new HashMap<Integer, Double>();
                 for(int i = 0; i < CELL_NR; i++)
                     cellProbabilities.put(i + 1, 1.0 / CELL_NR);
@@ -231,10 +300,11 @@ public class MainActivity extends Activity {
         public void onReceive(Context c, Intent intent) {
 
             if (doLocalization == true) {
-                doLocalization = false;
+                currentResults = new HashMap<>();
                 List<ScanResult> results = wifi.getScanResults();
                 for (int i = 0; i < results.size(); i++) {
-                    currentResults.put(results.get(i).SSID, (int) (128.0 + results.get(i).level));
+                    currentResults.put(results.get(i).BSSID, (int) (128.0 + results.get(i).level));
+
                 }
                 return;
             }
@@ -250,15 +320,15 @@ public class MainActivity extends Activity {
                 for (int n = 0; n < results.size(); n++) {
                     ScanResult resultAP = results.get(n);
                     // SSID contains name of AP and level contains RSSI
-                    System.out.printf("Wifi", "SSID = " + resultAP.SSID + "; RSSI =  " + resultAP.level);
+                    System.out.printf("Wifi", "SSID = " + resultAP.SSID + "; BSSID = " + resultAP.BSSID + "; RSSI =  " + resultAP.level);
 
-                    if (accessPoints.containsKey(resultAP.SSID) == false)
-                        accessPoints.put(resultAP.SSID, new HashMap<Integer, List<Double>>());
+                    if (accessPoints.containsKey(resultAP.BSSID) == false)
+                        accessPoints.put(resultAP.BSSID, new HashMap<Integer, List<Double>>());
 
-                    if (accessPoints.get(resultAP.SSID).containsKey(currentCellNr) == false)
-                        accessPoints.get(resultAP.SSID).put(currentCellNr, new ArrayList<Double>());
+                    if (accessPoints.get(resultAP.BSSID).containsKey(currentCellNr) == false)
+                        accessPoints.get(resultAP.BSSID).put(currentCellNr, new ArrayList<Double>());
 
-                    accessPoints.get(resultAP.SSID).get(currentCellNr).add(new Double(resultAP.level));
+                    accessPoints.get(resultAP.BSSID).get(currentCellNr).add(new Double(resultAP.level));
 
                 }
             } catch (Exception e) {
