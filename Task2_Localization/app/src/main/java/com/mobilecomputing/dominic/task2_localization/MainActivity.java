@@ -55,6 +55,8 @@ public class MainActivity extends Activity {
     private TextView textCellProbabilities;
     private TextView textMarker;
 
+    private int nr_of_scans = 0;
+
     private WifiManager wifi;
     private int currentCellNr = -1;
     private boolean exportData = false;
@@ -76,6 +78,7 @@ public class MainActivity extends Activity {
     private void refreshWifiData() {
         try {
             wifi.startScan();
+
             List<ScanResult> results = wifi.getScanResults();
 
             if (currentCellNr == -1)
@@ -244,6 +247,7 @@ public class MainActivity extends Activity {
                     return;
                 }
                 currentResults = new HashMap<>();
+                wifi.startScan();
                 List<ScanResult> results = wifi.getScanResults();
                 for (int i = 0; i < results.size(); i++) {
                     currentResults.put(results.get(i).BSSID.replace(':', '_'), (int) (128.0 + results.get(i).level));
@@ -268,41 +272,30 @@ public class MainActivity extends Activity {
                 }
                 currentResults = trimmedHashMap;
 
-                HashMap<String, HashMap<Integer, double[]>> accessPointsPosterior = new HashMap<>();
-
 
                 //loop over access points
-                for (HashMap.Entry<String, HashMap<Integer, double[]>> entryAP : accessPointsNormalizedHistogram.entrySet()) {
-                    String keyAP = entryAP.getKey();
-                    if(currentResults.containsKey(keyAP) == false)
-                        continue;
+                for (HashMap.Entry<String, Integer> entry : currentResults.entrySet()) {
+                    for (int cell = 1; cell <= CELL_NR; cell++) {
+                        double newCellProbability = cellProbabilities.get(cell) * accessPointsNormalizedHistogram.get(entry.getKey()).get(cell)[entry.getValue()];
 
-                    HashMap<Integer, double[]> valueAP = entryAP.getValue();
+                        // Any cell may contain the agent with a non-zero probability
+                        double chance = 1/(cellProbabilities.size() * 1000.0);
+                        if (newCellProbability < chance)
+                            newCellProbability = chance;
+                        cellProbabilities.put(cell, newCellProbability);
 
-                    //loop over cells (rows of access points)
-                    for (HashMap.Entry<Integer, double[]> entryCell : valueAP.entrySet()) {
-                        Integer keyCell = entryCell.getKey();
-                        double[] valueCell = entryCell.getValue();
-                        for(int i = 0; i < valueCell.length; i++)
-                        {
-                            double newCellProbability = cellProbabilities.get(keyCell) * valueCell[currentResults.get(keyAP)];
 
-                             // Any cell may contain the agent with a non-zero probability
-                            double chance = 1/(cellProbabilities.size() * 100.0);
-                            if (newCellProbability < chance)
-                                newCellProbability = chance;
-
-                            // normalize
-                            double sumColumn = 0.0;
-                            for (HashMap.Entry<Integer, double[]> tmp : valueAP.entrySet())
-                                sumColumn += tmp.getValue()[currentResults.get(keyAP)];
-                            if(sumColumn > 0)
-                                newCellProbability /= sumColumn;
-
-                            cellProbabilities.put(keyCell, newCellProbability);
-                        }
                     }
+                    // normalize
+                    double sumColumn = 0.0;
+                    for (HashMap.Entry<Integer, Double> entryCell : cellProbabilities.entrySet())
+                        sumColumn += entryCell.getValue();
+                    for (HashMap.Entry<Integer, Double> entryCell : cellProbabilities.entrySet())
+                        cellProbabilities.put(entryCell.getKey(), entryCell.getValue() / sumColumn);
                 }
+
+
+
                 currentResults = null;
 
                 //TODO: mark cell with highest probability
@@ -389,10 +382,16 @@ public class MainActivity extends Activity {
                     return;
                 try {
                     currentCellNr = Integer.parseInt(textCellNr.getText().toString());
-                    textRecording.setText("RECORDING");
 
-                    for(int a = 0; a < 1000; a++)
-                        refreshWifiData();
+                    wifi.startScan();
+
+                    /*for(int a = 0; a < 1000; a++)
+                        refreshWifiData();*/
+
+                    textRecording.setText("RECORDING CELL " + currentCellNr);
+
+
+
                 }
                 catch (Exception ex){
                     currentCellNr = -1;
@@ -404,8 +403,10 @@ public class MainActivity extends Activity {
         buttonstop.setOnClickListener(new View.OnClickListener(){
             @Override
             public void onClick(View view) {
+                textRecording.setText("RECORDING CELL " + currentCellNr + " DONE" + "\nScans: " + nr_of_scans);
                 currentCellNr = -1;
-                textRecording.setText("");
+                nr_of_scans = 0;
+
             }
         });
 
@@ -415,7 +416,7 @@ public class MainActivity extends Activity {
     class WifiReceiver extends BroadcastReceiver {
         // An access point scan has completed and results are sent here
         public void onReceive(Context c, Intent intent) {
-/*
+
             if (doLocalization == true) {
                 currentResults = new HashMap<>();
                 List<ScanResult> results = wifi.getScanResults();
@@ -425,33 +426,38 @@ public class MainActivity extends Activity {
                 }
                 return;
             }
-*/
 
 
-            /*
+
+
             if (currentCellNr == -1)
                 return;
             List<ScanResult> results = wifi.getScanResults();
-            //while(results.size() == 0)
-                //results = wifi.getScanResults();
+            if(results.size() == 0)
+                return;
+
+
 
             try {
                 for (int n = 0; n < results.size(); n++) {
                     ScanResult resultAP = results.get(n);
                     // SSID contains name of AP and level contains RSSI
-                    System.out.printf("Wifi", "SSID = " + resultAP.SSID + "; BSSID = " + resultAP.BSSID + "; RSSI =  " + resultAP.level);
+                    System.out.printf("Wifi", "SSID = " + resultAP.SSID + "; BSSID = " + resultAP.BSSID.replace(':', '_') + "; RSSI =  " + resultAP.level);
 
-                    if (accessPoints.containsKey(resultAP.BSSID) == false)
-                        accessPoints.put(resultAP.BSSID, new HashMap<Integer, List<Double>>());
+                    if (accessPoints.containsKey(resultAP.BSSID.replace(':', '_')) == false)
+                        accessPoints.put(resultAP.BSSID.replace(':', '_'), new HashMap<Integer, List<Double>>());
 
-                    if (accessPoints.get(resultAP.BSSID).containsKey(currentCellNr) == false)
-                        accessPoints.get(resultAP.BSSID).put(currentCellNr, new ArrayList<Double>());
+                    if (accessPoints.get(resultAP.BSSID.replace(':', '_')).containsKey(currentCellNr) == false)
+                        accessPoints.get(resultAP.BSSID.replace(':', '_')).put(currentCellNr, new ArrayList<Double>());
 
-                    accessPoints.get(resultAP.BSSID).get(currentCellNr).add(new Double(resultAP.level));
+                    accessPoints.get(resultAP.BSSID.replace(':', '_')).get(currentCellNr).add(new Double(resultAP.level));
+
 
                 }
+                textRecording.setText("RECORDING CELL " + currentCellNr + "\nScans: " + ++nr_of_scans);
+                wifi.startScan();
             } catch (Exception e) {
-            }*/
+            }
         }
     } // End of class WifiReceiver
 }
