@@ -3,6 +3,7 @@
     <string name="label_cellProbability">1:\t%1$.2f\t2:\t%2$.2f\t3:\t%3$.2f\t4:\t%4$.2f\t5:\t%5$.2f \n6:\t%6$.2f\t7:\t%7$.2f\t8:\t%8$.2f\t9:\t%9$.2f\t10:\t%10$.2f</string>
     <string name="button_createFile1">Create new data</string>
     <string name="button_createFile2">Write data to file</string>
+    <string name="label_marker">O</string>
 
 
 </resources>
