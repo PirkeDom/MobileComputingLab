@@ -4,6 +4,8 @@
     <string name="button_createFile1">Create new data</string>
     <string name="button_createFile2">Write data to file</string>
     <string name="label_marker">O</string>
+    <string name="label_predicted_activity">Predicted Activity: %s</string>
+    <string name="label_predicted_direction">Predicted Direction: %1$.2f °</string>
 
 
 </resources>

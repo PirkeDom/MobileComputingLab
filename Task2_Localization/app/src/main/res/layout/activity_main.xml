@@ -78,6 +78,20 @@
         android:src="@drawable/map"
         app:layout_constraintLeft_toLeftOf="parent"
         app:layout_constraintTop_toBottomOf="@+id/label_cellProbability"/>
+    <TextView
+        android:id="@+id/label_predicted_activity"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/label_predicted_activity"
+        app:layout_constraintLeft_toLeftOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/image_map"></TextView>
+    <TextView
+        android:id="@+id/label_predicted_direction"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="@string/label_predicted_direction"
+        app:layout_constraintLeft_toLeftOf="parent"
+        app:layout_constraintTop_toBottomOf="@+id/label_predicted_activity"></TextView>
 
 
     <AbsoluteLayout xmlns:android="http://schemas.android.com/apk/res/android"
