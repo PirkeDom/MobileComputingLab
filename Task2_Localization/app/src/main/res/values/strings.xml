@@ -6,6 +6,6 @@
     <string name="label_marker">O</string>
     <string name="label_predicted_activity">Predicted Activity: %s</string>
     <string name="label_predicted_direction">Predicted Direction: %1$.2f °</string>
-
+    <string name="label_predicted_steps">Predicted Steps: %d</string>
 
 </resources>

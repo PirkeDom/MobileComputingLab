@@ -14,6 +14,7 @@ import android.net.wifi.ScanResult;
 import android.net.wifi.WifiManager;
 import android.os.Build;
 import android.os.Bundle;
+import android.os.Handler;
 import android.support.annotation.RequiresApi;
 import android.view.View;
 import android.widget.Button;
@@ -53,6 +54,7 @@ public class MainActivity extends Activity implements SensorEventListener {
     //activity variables
     private Sensor mSensorAccelerometer;
     private Sensor mSensorRotation;
+    private int steps = 0;
     private SensorEvent sensorEvent;
     int sensorDataCounter = 0;
     private float[][] buffer;
@@ -63,11 +65,13 @@ public class MainActivity extends Activity implements SensorEventListener {
     File myExternalFile;
     private TextView textPredictedActivity;
     private TextView textPredictedDirection;
+    private TextView textPredictedSteps;
     private SensorManager mSensorManager;
     private Rotation calibrationDirection = null;
     private Rotation latestDirection;
     private boolean initiateDirectoin = false;
-
+    private long startTimeWalking = 0;
+    private long walkingTime = 0;
     //end of activity variables
 
     private int nr_of_scans = 0;
@@ -120,6 +124,7 @@ public class MainActivity extends Activity implements SensorEventListener {
 
         textPredictedActivity = (TextView) findViewById(R.id.label_predicted_activity);
         textPredictedDirection = (TextView) findViewById(R.id.label_predicted_direction);
+        textPredictedSteps = (TextView) findViewById(R.id.label_predicted_steps);
 
         textCellProbabilities.setText(getResources().getString(R.string.label_cellProbability, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0));
 
@@ -132,6 +137,7 @@ public class MainActivity extends Activity implements SensorEventListener {
         mSensorManager = (SensorManager) getSystemService(Context.SENSOR_SERVICE);
         mSensorAccelerometer = mSensorManager.getDefaultSensor(Sensor.TYPE_ACCELEROMETER);
         mSensorRotation = mSensorManager.getDefaultSensor(Sensor.TYPE_ROTATION_VECTOR);
+
         buffer = new float[20][3];
         buffercounter = 0;
         knn(getExternalFilesDir("classification") + "/activity_train.txt", getExternalFilesDir("classification") + "/activity_test.txt",1,2);
@@ -523,9 +529,19 @@ public class MainActivity extends Activity implements SensorEventListener {
                         break;
                     case 1:
                         predictedActivity = "Walking";
+                        startTimeWalking = System.currentTimeMillis()/1000;
                         break;
                     case 2:
-                        predictedActivity = "Sitting";
+                        predictedActivity = "Standing";
+                        if(startTimeWalking > 0) { 
+                            long stopTimeWalking = System.currentTimeMillis() / 1000;
+                            walkingTime = stopTimeWalking - startTimeWalking;
+                            if (walkingTime > 0) {
+                                //TODO: use walking Time to predict position (maybe 1s for 1 step); would mean walkingTime = steps
+                                textPredictedSteps.setText(getResources().getString(R.string.label_predicted_steps, walkingTime));
+                            }
+                            startTimeWalking = 0;
+                        }
                         break;
                 }
                 textPredictedActivity.setText(getResources().getString(R.string.label_predicted_activity, predictedActivity));
@@ -535,6 +551,7 @@ public class MainActivity extends Activity implements SensorEventListener {
         else if(event.sensor.getType() == Sensor.TYPE_ROTATION_VECTOR) {
             onSensorValues(event.values);
         }
+
 
 
     }
