@@ -304,6 +304,11 @@ public class MainActivity extends Activity implements SensorEventListener {
                 accessPointsNormalizedHistogram = new HashMap<>();
                 File dir = getExternalFilesDir(filepath);
                 int l = dir.listFiles().length;
+                if(dir.listFiles().length == 0){
+                    textCellProbabilities.setText("no training data available");
+                    return;
+                }
+
                 for (File file : dir.listFiles()) {
                     HashMap<Integer, double[]> valueAP = new HashMap<Integer, double[]>();
                     FileInputStream is;
