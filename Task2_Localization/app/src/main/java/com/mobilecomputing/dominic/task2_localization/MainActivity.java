@@ -229,6 +229,16 @@ public class MainActivity extends Activity implements SensorEventListener {
                                     if(rssValues[i] == 0.0 && rssValues[i-1] > 0 && rssValues[i+1] > 0)
                                         rssValues[i] = (rssValues[i-1] + rssValues[i+1]) / 2;
                                 }
+                                //second time: remove gaps with zeros (fill up with average of previous and next index)
+                                for (int i = 1; i < rssValues.length - 1; i++) {
+                                    if(rssValues[i] == 0.0 && rssValues[i-1] > 0 && rssValues[i+1] > 0)
+                                        rssValues[i] = (rssValues[i-1] + rssValues[i+1]) / 2;
+                                }
+                                //third time: remove gaps with zeros (fill up with average of previous and next index)
+                                for (int i = 1; i < rssValues.length - 1; i++) {
+                                    if(rssValues[i] == 0.0 && rssValues[i-1] > 0 && rssValues[i+1] > 0)
+                                        rssValues[i] = (rssValues[i-1] + rssValues[i+1]) / 2;
+                                }
                                 String rssString = "";
                                 for (int i = 0; i < rssValues.length; i++) {
                                     rssValues[i] = rssValues[i] / tmp.length;
@@ -370,65 +380,69 @@ public class MainActivity extends Activity implements SensorEventListener {
 
     }
 
-    public void senseModel(){
-        try {
+    public void senseModel() {
 
-            if (doLocalization == false) {
-                return;
-            }
+
+        if (doLocalization == false) {
+            return;
+        }
+        while (currentResults == null) {
             wifi.startScan();
 
-                    /*currentResults = new HashMap<>();
-                    List<ScanResult> results = wifi.getScanResults();
-                    for (int i = 0; i < results.size(); i++) {
-                        currentResults.put(results.get(i).BSSID.replace(':', '_'), (int) (128.0 + results.get(i).level));
-                    }*/
 
-            if (currentResults == null)
-                return;
-
-            //not best way to sort and trim hashmap (but works...)
-            //only use 4 strongest values
-            HashMap<String, Integer> map = sortByValues(currentResults);
-            HashMap trimmedHashMap = new LinkedHashMap();
-            Iterator it = map.entrySet().iterator();
-            int count = 0;
-            while (it.hasNext() && count < 4) {
-                Map.Entry pair = (Map.Entry) it.next();
-                System.out.println(pair.getKey() + " = " + pair.getValue());
-                trimmedHashMap.put(pair.getKey(), pair.getValue());
-                it.remove(); // avoids a ConcurrentModificationException
-                count++;
+            currentResults = new HashMap<>();
+            List<ScanResult> results = wifi.getScanResults();
+            for (int i = 0; i < results.size(); i++) {
+                currentResults.put(results.get(i).BSSID.replace(':', '_'), (int) (128.0 + results.get(i).level));
             }
-            currentResults = trimmedHashMap;
+        }
 
-            //loop oover current results (4 strongest access points)
-            for (HashMap.Entry<String, Integer> entry : currentResults.entrySet()) {
-                //loop over cells
-                for (int cell = 1; cell <= CELL_NR; cell++) {
-                    double newCellProbability = cellProbabilities.get(cell) * accessPointsNormalizedHistogram.get(entry.getKey()).get(cell)[entry.getValue()];
+
+        //not best way to sort and trim hashmap (but works...)
+        //only use 4 strongest values
+        HashMap<String, Integer> map = sortByValues(currentResults);
+        HashMap trimmedHashMap = new LinkedHashMap();
+        Iterator it = map.entrySet().iterator();
+        int count = 0;
+        while (it.hasNext() && count < 4) {
+            Map.Entry pair = (Map.Entry) it.next();
+            System.out.println(pair.getKey() + " = " + pair.getValue());
+            trimmedHashMap.put(pair.getKey(), pair.getValue());
+            it.remove(); // avoids a ConcurrentModificationException
+            count++;
+        }
+        currentResults = trimmedHashMap;
+
+        //loop oover current results (4 strongest access points)
+        for (HashMap.Entry<String, Integer> entry : currentResults.entrySet()) {
+            //loop over cells
+            for (int cell = 1; cell <= CELL_NR; cell++) {
+                try {
+                    HashMap<Integer, double[]> tmp = accessPointsNormalizedHistogram.get(entry.getKey());
+                    double newCellProbability = cellProbabilities.get(cell) * tmp.get(cell)[entry.getValue()];
 
                     // Any cell may contain the agent with a non-zero probability
                     double chance = 1 / (cellProbabilities.size() * 1000.0);
                     if (newCellProbability < chance)
                         newCellProbability = chance;
                     cellProbabilities.put(cell, newCellProbability);
-
-                }
-                // normalize
-                double sumColumn = 0.0;
-                for (HashMap.Entry<Integer, Double> entryCell : cellProbabilities.entrySet())
-                    sumColumn += entryCell.getValue();
-                for (HashMap.Entry<Integer, Double> entryCell : cellProbabilities.entrySet()) {
-                    if (sumColumn > 0)
-                        cellProbabilities.put(entryCell.getKey(), entryCell.getValue() / sumColumn);
+                } catch (Exception ex) {
+                    System.out.println(ex.getMessage());
                 }
             }
-
-            currentResults = null;
-        } catch (Exception ex) {
-            System.out.println(ex.getMessage());
+            // normalize
+            double sumColumn = 0.0;
+            for (HashMap.Entry<Integer, Double> entryCell : cellProbabilities.entrySet())
+                sumColumn += entryCell.getValue();
+            for (HashMap.Entry<Integer, Double> entryCell : cellProbabilities.entrySet()) {
+                if (sumColumn > 0)
+                    cellProbabilities.put(entryCell.getKey(), entryCell.getValue() / sumColumn);
+            }
         }
+
+        currentResults = null;
+
+
     }
 
     public void moveModel(){
@@ -536,7 +550,7 @@ public class MainActivity extends Activity implements SensorEventListener {
                 currentResults = new HashMap<>();
                 List<ScanResult> results = wifi.getScanResults();
                 for (int i = 0; i < results.size(); i++) {
-                    currentResults.put(results.get(i).BSSID, (int) (128.0 + results.get(i).level));
+                    currentResults.put(results.get(i).BSSID.replace(':', '_'), (int) (128.0 + results.get(i).level));
                 }
                 return;
             }
