@@ -34,7 +34,7 @@ public class FileManager {
 		//transform data from file into TrainRecord objects
 		TrainRecord[] records = new TrainRecord[NumOfSamples];
 		int index = 0;
-		while(scanner.hasNext()){
+		while(scanner.hasNext() && index < NumOfSamples){
 			double[] attributes = new double[NumOfAttributes];
 			int classLabel = -1;
 			
@@ -69,7 +69,7 @@ public class FileManager {
 		
 		TestRecord[] records = new TestRecord[NumOfSamples];
 		int index = 0;
-		while(scanner.hasNext()){
+		while(scanner.hasNext() && index < NumOfSamples){
 			double[] attributes = new double[NumOfAttributes];
 			int classLabel = -1;
 			

@@ -78,13 +78,19 @@
         android:src="@drawable/map"
         app:layout_constraintLeft_toLeftOf="parent"
         app:layout_constraintTop_toBottomOf="@+id/label_cellProbability"/>
+    <Switch
+        android:id="@+id/switchUseMotionModel"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:text="Use Motion Model "
+        app:layout_constraintTop_toBottomOf="@+id/image_map"/>
     <TextView
         android:id="@+id/label_predicted_activity"
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="@string/label_predicted_activity"
         app:layout_constraintLeft_toLeftOf="parent"
-        app:layout_constraintTop_toBottomOf="@+id/image_map"></TextView>
+        app:layout_constraintTop_toBottomOf="@+id/switchUseMotionModel"></TextView>
     <TextView
         android:id="@+id/label_predicted_direction"
         android:layout_width="wrap_content"

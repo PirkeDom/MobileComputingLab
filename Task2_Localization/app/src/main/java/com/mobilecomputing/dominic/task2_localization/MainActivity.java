@@ -18,6 +18,7 @@ import android.os.Handler;
 import android.support.annotation.RequiresApi;
 import android.view.View;
 import android.widget.Button;
+import android.widget.Switch;
 import android.widget.TextView;
 
 import org.apache.commons.math3.geometry.euclidean.threed.Rotation;
@@ -50,6 +51,12 @@ public class MainActivity extends Activity implements SensorEventListener {
     private TextView textCellProbabilities;
     private TextView textMarker;
 
+    private Switch switchUseMotionModel;
+
+    private String[] cellStructure = new String[26]; //map is 26m long
+    private double stepLength = 0.7;
+    private double currentPositionFromMoveModel = 0.5;
+
 
     //activity variables
     private Sensor mSensorAccelerometer;
@@ -71,7 +78,10 @@ public class MainActivity extends Activity implements SensorEventListener {
     private Rotation latestDirection;
     private boolean initiateDirectoin = false;
     private long startTimeWalking = 0;
-    private long walkingTime = 0;
+    private int walkingTime = 0;
+    private boolean alreadyWalking = false;
+    private double currentAngleDegree = 0.0;
+    private double walkingAngleDegree = 0.0;
     //end of activity variables
 
     private int nr_of_scans = 0;
@@ -117,6 +127,10 @@ public class MainActivity extends Activity implements SensorEventListener {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_main);
+
+        initializeCellStructure();
+
+        switchUseMotionModel = findViewById(R.id.switchUseMotionModel);
 
         textCellNr = findViewById(R.id.text_cellnr);
         textRecording = findViewById(R.id.label_recording);
@@ -242,79 +256,29 @@ public class MainActivity extends Activity implements SensorEventListener {
             }
         });
 
+
+
         final Button buttonlocateMe = (Button)findViewById(R.id.button_locateme);
         buttonlocateMe.setOnClickListener(new View.OnClickListener(){
             @Override
             public void onClick(View view) {
-                try {
 
-                    if (doLocalization == false) {
-                        return;
-                    }
-                    wifi.startScan();
+                senseModel();
 
-                    /*currentResults = new HashMap<>();
-                    List<ScanResult> results = wifi.getScanResults();
-                    for (int i = 0; i < results.size(); i++) {
-                        currentResults.put(results.get(i).BSSID.replace(':', '_'), (int) (128.0 + results.get(i).level));
-                    }*/
+                if(switchUseMotionModel.isChecked())
+                    moveModel();
 
-                    if (currentResults == null)
-                        return;
+                HashMap<String, Integer> tmp = sortByValues(cellProbabilities);
+                int cell_nr_to_mark = (int) tmp.keySet().toArray()[0];
 
-                    //not best way to sort and trim hashmap (but works...)
-                    //only use 4 strongest values
-                    HashMap<String, Integer> map = sortByValues(currentResults);
-                    HashMap trimmedHashMap = new LinkedHashMap();
-                    Iterator it = map.entrySet().iterator();
-                    int count = 0;
-                    while (it.hasNext() && count < 4) {
-                        Map.Entry pair = (Map.Entry) it.next();
-                        System.out.println(pair.getKey() + " = " + pair.getValue());
-                        trimmedHashMap.put(pair.getKey(), pair.getValue());
-                        it.remove(); // avoids a ConcurrentModificationException
-                        count++;
-                    }
-                    currentResults = trimmedHashMap;
+                textMarker.setX(markerPosX[cell_nr_to_mark - 1]);
+                textMarker.setY(markerPosY[cell_nr_to_mark - 1]);
 
-                    //loop oover current results (4 strongest access points)
-                    for (HashMap.Entry<String, Integer> entry : currentResults.entrySet()) {
-                        //loop over cells
-                        for (int cell = 1; cell <= CELL_NR; cell++) {
-                            double newCellProbability = cellProbabilities.get(cell) * accessPointsNormalizedHistogram.get(entry.getKey()).get(cell)[entry.getValue()];
+                textCellProbabilities.setText(getResources().getString(R.string.label_cellProbability, cellProbabilities.get(1), cellProbabilities.get(2), cellProbabilities.get(3),
+                        cellProbabilities.get(4), cellProbabilities.get(5), cellProbabilities.get(6), cellProbabilities.get(7), cellProbabilities.get(8), cellProbabilities.get(9),
+                        cellProbabilities.get(10)));
 
-                            // Any cell may contain the agent with a non-zero probability
-                            double chance = 1 / (cellProbabilities.size() * 1000.0);
-                            if (newCellProbability < chance)
-                                newCellProbability = chance;
-                            cellProbabilities.put(cell, newCellProbability);
 
-                        }
-                        // normalize
-                        double sumColumn = 0.0;
-                        for (HashMap.Entry<Integer, Double> entryCell : cellProbabilities.entrySet())
-                            sumColumn += entryCell.getValue();
-                        for (HashMap.Entry<Integer, Double> entryCell : cellProbabilities.entrySet()) {
-                            if (sumColumn > 0)
-                                cellProbabilities.put(entryCell.getKey(), entryCell.getValue() / sumColumn);
-                        }
-                    }
-
-                    currentResults = null;
-
-                    HashMap<String, Integer> tmp = sortByValues(cellProbabilities);
-                    int cell_nr_to_mark = (int) tmp.keySet().toArray()[0];
-
-                    textMarker.setX(markerPosX[cell_nr_to_mark - 1]);
-                    textMarker.setY(markerPosY[cell_nr_to_mark - 1]);
-
-                    textCellProbabilities.setText(getResources().getString(R.string.label_cellProbability, cellProbabilities.get(1), cellProbabilities.get(2), cellProbabilities.get(3),
-                            cellProbabilities.get(4), cellProbabilities.get(5), cellProbabilities.get(6), cellProbabilities.get(7), cellProbabilities.get(8), cellProbabilities.get(9),
-                            cellProbabilities.get(10)));
-
-                } catch (Exception ex) {
-                    System.out.println(ex.getMessage());
-                }
             }
 
         });
@@ -406,6 +370,163 @@ public class MainActivity extends Activity implements SensorEventListener {
 
     }
 
+    public void senseModel(){
+        try {
+
+            if (doLocalization == false) {
+                return;
+            }
+            wifi.startScan();
+
+                    /*currentResults = new HashMap<>();
+                    List<ScanResult> results = wifi.getScanResults();
+                    for (int i = 0; i < results.size(); i++) {
+                        currentResults.put(results.get(i).BSSID.replace(':', '_'), (int) (128.0 + results.get(i).level));
+                    }*/
+
+            if (currentResults == null)
+                return;
+
+            //not best way to sort and trim hashmap (but works...)
+            //only use 4 strongest values
+            HashMap<String, Integer> map = sortByValues(currentResults);
+            HashMap trimmedHashMap = new LinkedHashMap();
+            Iterator it = map.entrySet().iterator();
+            int count = 0;
+            while (it.hasNext() && count < 4) {
+                Map.Entry pair = (Map.Entry) it.next();
+                System.out.println(pair.getKey() + " = " + pair.getValue());
+                trimmedHashMap.put(pair.getKey(), pair.getValue());
+                it.remove(); // avoids a ConcurrentModificationException
+                count++;
+            }
+            currentResults = trimmedHashMap;
+
+            //loop oover current results (4 strongest access points)
+            for (HashMap.Entry<String, Integer> entry : currentResults.entrySet()) {
+                //loop over cells
+                for (int cell = 1; cell <= CELL_NR; cell++) {
+                    double newCellProbability = cellProbabilities.get(cell) * accessPointsNormalizedHistogram.get(entry.getKey()).get(cell)[entry.getValue()];
+
+                    // Any cell may contain the agent with a non-zero probability
+                    double chance = 1 / (cellProbabilities.size() * 1000.0);
+                    if (newCellProbability < chance)
+                        newCellProbability = chance;
+                    cellProbabilities.put(cell, newCellProbability);
+
+                }
+                // normalize
+                double sumColumn = 0.0;
+                for (HashMap.Entry<Integer, Double> entryCell : cellProbabilities.entrySet())
+                    sumColumn += entryCell.getValue();
+                for (HashMap.Entry<Integer, Double> entryCell : cellProbabilities.entrySet()) {
+                    if (sumColumn > 0)
+                        cellProbabilities.put(entryCell.getKey(), entryCell.getValue() / sumColumn);
+                }
+            }
+
+            currentResults = null;
+        } catch (Exception ex) {
+            System.out.println(ex.getMessage());
+        }
+    }
+
+    public void moveModel(){
+        if(steps == 0) //if no steps done -> return because there was no movement
+            return;
+        //calculate distance in x direction (for this map mainly x direction is important)
+        double dx = steps * stepLength * Math.cos(walkingAngleDegree*Math.PI/180);
+        steps=0;
+        double tmp = currentPositionFromMoveModel + dx;
+        if(tmp < 0 || tmp >= cellStructure.length)
+            return; //illegal movement!!
+
+        currentPositionFromMoveModel = tmp;
+        //TODO: use Math.round with currentPositionFromMoveModel to get index
+
+        //initialize new cellprop vector with same size but all values 0
+        HashMap<Integer, Double> cellProbabilitiesMove = new HashMap<Integer, Double>();
+        for (HashMap.Entry<Integer, Double> entryCell : cellProbabilities.entrySet()) {
+            double chance = 1 / (cellProbabilities.size() * 1000.0);
+            cellProbabilitiesMove.put(entryCell.getKey(), chance);
+        }
+
+        int index = (int)Math.round(currentPositionFromMoveModel);
+        String[] cellTopProb = cellStructure[index].split(",");
+        for(String cellNr : cellTopProb){
+            int cell = Integer.parseInt(cellNr);
+            cellProbabilitiesMove.put(cell, 1.0);
+        }
+        int t = 1;//get left neighbor and set probability (for several uncertainties)
+        while(index - t >= 0 && cellStructure[index] == cellStructure[index - t])
+            t++;
+        if(index - t >= 0 && cellStructure[index] != cellStructure[index - t]){
+            String[] tmpCell = cellStructure[index - t].split(",");
+            for(String cellNr : tmpCell){
+                int cell = Integer.parseInt(cellNr);
+                cellProbabilitiesMove.put(cell, 0.6);
+            }
+        }
+        t = 1;//get right neighbor and set probability (for several uncertainties)
+        while(index + t < cellStructure.length && cellStructure[index] == cellStructure[index + t])
+            t++;
+        if(index + t <  cellStructure.length && cellStructure[index] != cellStructure[index + t]){
+            String[] tmpCell = cellStructure[index + t].split(",");
+            for(String cellNr : tmpCell){
+                int cell = Integer.parseInt(cellNr);
+                cellProbabilitiesMove.put(cell, 0.6);
+            }
+        }
+        // normalize
+        double sumColumn = 0.0;
+        for (HashMap.Entry<Integer, Double> entryCell : cellProbabilitiesMove.entrySet())
+            sumColumn += entryCell.getValue();
+        for (HashMap.Entry<Integer, Double> entryCell : cellProbabilitiesMove.entrySet()) {
+            if (sumColumn > 0)
+                cellProbabilitiesMove.put(entryCell.getKey(), entryCell.getValue() / sumColumn);
+        }
+
+        //calculate new probabiliy
+        for (HashMap.Entry<Integer, Double> entryCell : cellProbabilities.entrySet()) {
+            double newProbability = entryCell.getValue() * cellProbabilitiesMove.get(entryCell.getKey());
+            cellProbabilities.put(entryCell.getKey(), newProbability);
+
+        }
+
+        // normalize
+        sumColumn = 0.0;
+        for (HashMap.Entry<Integer, Double> entryCell : cellProbabilities.entrySet())
+            sumColumn += entryCell.getValue();
+        for (HashMap.Entry<Integer, Double> entryCell : cellProbabilities.entrySet()) {
+            if (sumColumn > 0)
+                cellProbabilities.put(entryCell.getKey(), entryCell.getValue() / sumColumn);
+        }
+
+
+    }
+
+    private void initializeCellStructure(){
+        int meter = 0;
+        while(meter < 3)
+            cellStructure[meter++] = "1";
+        while(meter<6)
+            cellStructure[meter++] = "2";
+        while(meter<9)
+            cellStructure[meter++] = "3";
+        while(meter<11)
+            cellStructure[meter++] = "4,7";
+        while(meter<14)
+            cellStructure[meter++] = "5";
+        while(meter<17)
+            cellStructure[meter++] = "6";
+        while(meter<20)
+            cellStructure[meter++] = "8";
+        while(meter<23)
+            cellStructure[meter++] = "9";
+        while(meter<26)
+            cellStructure[meter++] = "10";
+    }
+
     // WifiReceiver class is subclass of WifiActivity
     class WifiReceiver extends BroadcastReceiver {
         // An access point scan has completed and results are sent here
@@ -493,8 +614,8 @@ public class MainActivity extends Activity implements SensorEventListener {
             latestDirection = calibrationDirection.applyInverseTo(rotation);
             double angle = latestDirection.getAngle();
 
-            double angleDegree = angle * 180.0 / Math.PI;
-            textPredictedDirection.setText(getResources().getString(R.string.label_predicted_direction, angleDegree));
+            currentAngleDegree = angle * 180.0 / Math.PI;
+            textPredictedDirection.setText(getResources().getString(R.string.label_predicted_direction, currentAngleDegree));
             double t = latestDirection.getQ0();
         }
     }
@@ -510,7 +631,6 @@ public class MainActivity extends Activity implements SensorEventListener {
             printSensorData();
 
             if (sensorDataCounter % 10 == 0) {
-                //TODO: calculate mean of all 20 values and put it into knn
                 float sumX = 0, sumY = 0, sumZ = 0;
                 for (int i = 0; i < 20; i++) {
                     sumX += buffer[i][0];
@@ -520,25 +640,31 @@ public class MainActivity extends Activity implements SensorEventListener {
 
                 TestRecord recordToClassify = new TestRecord(new double[]{sumX / 20, sumY / 20, sumZ / 20, 0.000000}, 0);
 
+                if(trainingSet == null)
+                    return;
+
                 TrainRecord[] neighbors = findKNearestNeighbors(trainingSet, recordToClassify, 3, new EuclideanDistance());
                 int classLabel = classify(neighbors);
                 String predictedActivity = "";
                 switch (classLabel) {
                     case 0:
-                        predictedActivity = "Running";
+                        predictedActivity = "Walking";
+                        if(alreadyWalking == false) {
+                            startTimeWalking = System.currentTimeMillis();
+                            alreadyWalking = true;
+                            walkingAngleDegree = currentAngleDegree;
+                        }
                         break;
                     case 1:
-                        predictedActivity = "Walking";
-                        startTimeWalking = System.currentTimeMillis()/1000;
-                        break;
-                    case 2:
                         predictedActivity = "Standing";
+                        alreadyWalking = false;
                         if(startTimeWalking > 0) { 
-                            long stopTimeWalking = System.currentTimeMillis() / 1000;
-                            walkingTime = stopTimeWalking - startTimeWalking;
+                            long stopTimeWalking = System.currentTimeMillis();
+                            walkingTime = (int)(stopTimeWalking - startTimeWalking) / 1000;
                             if (walkingTime > 0) {
-                                //TODO: use walking Time to predict position (maybe 1s for 1 step); would mean walkingTime = steps
+                                // use walking Time to predict position (maybe 1s for 1 step); would mean walkingTime = steps
                                 textPredictedSteps.setText(getResources().getString(R.string.label_predicted_steps, walkingTime));
+                                steps = walkingTime;
                             }
                             startTimeWalking = 0;
                         }
@@ -678,6 +804,7 @@ public class MainActivity extends Activity implements SensorEventListener {
 
     // Find K nearest neighbors of testRecord within trainingSet
     static TrainRecord[] findKNearestNeighbors(TrainRecord[] trainingSet, TestRecord testRecord,int K, Metric metric){
+
         int NumOfTrainingSet = trainingSet.length;
         assert K <= NumOfTrainingSet : "K is lager than the length of trainingSet!";
 
