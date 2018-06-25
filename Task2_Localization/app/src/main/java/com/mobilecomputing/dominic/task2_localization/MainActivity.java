@@ -299,6 +299,7 @@ public class MainActivity extends Activity implements SensorEventListener {
             public void onClick(View view) {
 
                 initiateDirectoin = true;
+                calibrationDirection = null;
 
                 //load data from files (one per AP)
                 accessPointsNormalizedHistogram = new HashMap<>();
