@@ -101,7 +101,7 @@ public class MainActivity extends Activity implements SensorEventListener {
 
     private String filepath = "MyFileStorage";
 
-    private int CELL_NR = 3; //TODO: IMPORTANT: set right cell number
+    private int CELL_NR = 10; //TODO: IMPORTANT: set right cell number
 
     private static HashMap sortByValues(HashMap map) {
         List list = new LinkedList(map.entrySet());
